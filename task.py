@@ -1,8 +1,8 @@
 
+class task():
 
-class todo():
-
-    def __init__(self, title, total_time, importance, due_date, breakable=True, focus=45):
+    def __init__(self, id, title, total_time, importance, due_date, breakable=True, focus=45):
+        self.id = id
         self.title = title
         self.time_remaining = total_time
         self.total_time = total_time
@@ -10,6 +10,7 @@ class todo():
         self.due_date = due_date
         self.breakable = breakable
         self.focus = focus
+
 
     def get_priority():
         w_i, w_d, w_bp, w_t, w_dd, w_dc = ()
