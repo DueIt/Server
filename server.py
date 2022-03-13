@@ -179,15 +179,15 @@ def add_tasks():
     else:
         abort(400)
 
-@app.route('/get-calendar/<calendar_id>', methods=['GET'])
-def get_calendar(calendar_id):
+@app.route('/get-calendar/', methods=['GET'])
+def get_calendar():
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
     if id:
         conn = get_db()
         cur = conn.cursor()
         try:
-            cur.execute("""SELECT * FROM Calendars WHERE CalendarID = "{}" """.format(calendar_id))
+            cur.execute("""SELECT * FROM Calendars WHERE UserID = "{}" """.format(id))
             query_results = cur.fetchall()
             return make_response(jsonify(query_results), 200)
         except Exception as e:
@@ -204,11 +204,11 @@ def add_calendar():
     if id:
         conn = get_db()
         cur = conn.cursor()
-        CalendarID = request.json['CalendarID']
+
         RefID = request.json['RefID']
         try:
-            cur.execute("""INSERT INTO Calendars (CalendarID,RefID,UserID)
-                VALUES ("{}", "{}", "{}")""".format(CalendarID, RefID, id))
+            cur.execute("""INSERT INTO Calendars (RefID,UserID)
+                VALUES ("{}", "{}")""".format(RefID, id))
             conn.commit()
 
             return 'Done', 201
