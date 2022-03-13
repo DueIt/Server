@@ -157,6 +157,7 @@ def add_tasks():
         abort(400)
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
+
     if id:
         conn = get_db()
         cur = conn.cursor()
@@ -167,15 +168,12 @@ def add_tasks():
         Importance = request.json['importance']
         Difficulty = request.json['difficulty']
         Location = request.json['location']
-        UserID = request.json['user_id']
-        Completed = request.json['completed']
-
         try:
-            cur.execute("""INSERT INTO Tasks (TaskID, Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Location, UserID)
-                VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Completed, Location, UserID))
+            cur.execute("""INSERT INTO Tasks (Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Location, UserID)
+                VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Location, id))
             conn.commit()
 
-            return 'Done', 201
+            return jwt
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
@@ -208,10 +206,9 @@ def add_calendar():
         cur = conn.cursor()
         CalendarID = request.json['CalendarID']
         RefID = request.json['RefID']
-        UserID = request.json['UserID']
         try:
             cur.execute("""INSERT INTO Calendars (CalendarID,RefID,UserID)
-                VALUES ("{}", "{}", "{}")""".format(CalendarID, RefID, UserID))
+                VALUES ("{}", "{}", "{}")""".format(CalendarID, RefID, id))
             conn.commit()
 
             return 'Done', 201
@@ -229,7 +226,7 @@ def update_time(task_id) :
     if id:
         conn = get_db()
         cur = conn.cursor()
-        RemainingTime = request.json['RemainingTime']
+        RemainingTime = request.json['remaining_time']
         try:
             cur.execute("""UPDATE Tasks SET RemainingTime = "{}" WHERE TaskID = "{}" """.format(RemainingTime, task_id))
             conn.commit()
@@ -241,25 +238,25 @@ def update_time(task_id) :
         abort(400)
 
 
-@app.route('/change-complete/<task_id>', methods=['POST'])
-def change_complete(task_id) :
-    if not request.json:
-        abort(400)
-    jwt = request.headers['Token']
-    id = get_id_from_jwt(jwt)
-    if id:
-        conn = get_db()
-        cur = conn.cursor()
-        Completed = request.json['Completed']
-        try:
-            cur.execute("""UPDATE Tasks SET Completed = "{}" WHERE TaskID = "{}" """.format(Completed, task_id))
-            conn.commit()
+# @app.route('/change-complete/<task_id>', methods=['POST'])
+# def change_complete(task_id) :
+#     if not request.json or not 'completed' in request.json:
+#         abort(400)
+#     jwt = request.headers['Token']
+#     id = get_id_from_jwt(jwt)
+#     if id:
+#         conn = get_db()
+#         cur = conn.cursor()
+#         Completed = request.json['completed']
+#         try:
+#             cur.execute("""UPDATE Tasks SET Completed = "{}" WHERE TaskID = "{}" """.format(Completed, task_id))
+#             conn.commit()
 
-            return 'Done', 201
-        except Exception as e:
-            return ('Error: {}'.format(e), 500)
-    else:
-        abort(400)
+#             return 'Done', 201
+#         except Exception as e:
+#             return ('Error: {}'.format(e), 500)
+#     else:
+#         abort(400)
 
 
 
