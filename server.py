@@ -118,15 +118,15 @@ def sign_in():
         return ('Error: {}'.format(e), 500)
 
 
-@app.route('/get-tasks/<user_id>', methods=['GET'])
-def get_tasks(user_id):
+@app.route('/get-tasks', methods=['GET'])
+def get_tasks():
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
     if id:
         conn = get_db()
         cur = conn.cursor()
         try:
-            cur.execute("""SELECT * FROM Tasks WHERE UserID = "{}" """.format(user_id))
+            cur.execute("""SELECT * FROM Tasks WHERE UserID = "{}" """.format(id))
             query_results = cur.fetchall()
             return make_response(jsonify(query_results), 200)
         except Exception as e:
@@ -160,7 +160,6 @@ def add_tasks():
     if id:
         conn = get_db()
         cur = conn.cursor()
-        TaskID = request.json['task_id']
         Title = request.json['title']
         TotalTime = request.json['total_time']
         RemainingTime = request.json['remaining_time']
@@ -169,11 +168,11 @@ def add_tasks():
         Difficulty = request.json['difficulty']
         Location = request.json['location']
         UserID = request.json['user_id']
-        Completed = request.json['Completed']
+        Completed = request.json['completed']
 
         try:
             cur.execute("""INSERT INTO Tasks (TaskID, Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Location, UserID)
-                VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(TaskID, Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Completed, Location, UserID))
+                VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Completed, Location, UserID))
             conn.commit()
 
             return 'Done', 201
