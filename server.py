@@ -253,7 +253,7 @@ def change_complete(task_id) :
         cur = conn.cursor()
         Completed = request.json['Completed']
         try:
-            cur.execute("""UPDATE Tasks SET Completed = "{}" WHERE TaskID = "{}" """.format(Completed, task_id)))
+            cur.execute("""UPDATE Tasks SET Completed = "{}" WHERE TaskID = "{}" """.format(Completed, task_id))
             conn.commit()
 
             return 'Done', 201

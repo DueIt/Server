@@ -2,6 +2,8 @@ import json
 from datetime import datetime, timedelta
 import time
 
+from task import task
+
 
 class schedule():
 
@@ -72,10 +74,55 @@ class schedule():
         return free_time
 
 
+    def schedule_tasks(self, tasks):
+        if len(tasks) == 0:
+            return []
+        
+
+        slot_times = [int((end - start).total_seconds() / 60) for start, end in self.free_time]
+        # TODO: Order the tasks here so that we can then go down the order
+        scheduled = []
+        slot_i = 0
+        task_i = 0
+        space = True
+        while slot_i < len(slot_times) and task_i < len(tasks):
+            if slot_times[slot_i] > 10:
+                if slot_times[slot_i] > tasks[task_i].time_remaining:
+                    new_task = {
+                        "id": tasks[task_i].id,
+                        "start": (self.free_time[slot_i][1] - timedelta(minutes=slot_times[slot_i])),
+                        "end": (self.free_time[slot_i][1] - timedelta(minutes=slot_times[slot_i] - tasks[task_i].time_remaining)),
+                    }
+                    # print(new_task)
+                    slot_times[slot_i] -= tasks[task_i].time_remaining
+                    scheduled.append(new_task)
+                    tasks[task_i].time_remaining = 0
+                    
+                else:
+                    new_task = {
+                        "id": tasks[task_i].id,
+                        "start": (self.free_time[slot_i][1] - timedelta(minutes=slot_times[slot_i])),
+                        "end": (self.free_time[slot_i][1]),
+                    }
+                    tasks[task_i].time_remaining -= slot_times[slot_i]
+                    # print(new_task)
+                    scheduled.append(new_task)
+                    slot_times[slot_i] = 0
+                    
+                if slot_times[slot_i] <= 0:
+                    slot_i += 1
+                if tasks[task_i].time_remaining <= 0:
+                    task_i += 1
+            else:
+                slot_i += 1
+        return scheduled
+
+
+
 def datetime_from_utc_to_local(utc_datetime):
-        now_timestamp = time.time()
-        offset = datetime.fromtimestamp(now_timestamp) - datetime.utcfromtimestamp(now_timestamp)
-        return utc_datetime + offset
+    now_timestamp = time.time()
+    offset = datetime.fromtimestamp(now_timestamp) - datetime.utcfromtimestamp(now_timestamp)
+    return utc_datetime + offset
 
 
 
