@@ -179,7 +179,7 @@ def add_tasks():
     else:
         abort(400)
 
-@app.route('/get-calendar/', methods=['GET'])
+@app.route('/get-calendar', methods=['GET'])
 def get_calendar():
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
