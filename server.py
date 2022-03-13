@@ -87,7 +87,7 @@ def sign_up():
         print(e)
         return ('Error: {}'.format(e), 401)
 
-    
+
 
 @app.route('/sign-in', methods=['POST'])
 def sign_in():
@@ -116,6 +116,153 @@ def sign_in():
             return('Either your email or password is incorrect.', 401)
     except Exception as e:
         return ('Error: {}'.format(e), 500)
+
+
+@app.route('/get-tasks/<user_id>', methods=['GET'])
+def get_tasks(user_id):
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("""SELECT * FROM Tasks WHERE UserID = "{}" """.format(user_id))
+            query_results = cur.fetchall()
+            return make_response(jsonify(query_results), 200)
+        except Exception as e:
+            return ('Error: {}'.format(e), 500)
+    else:
+        abort(401)
+
+
+@app.route('/remove-tasks/<task_id>', methods=['DELETE'])
+def remove_tasks(task_id):
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("""DELETE FROM Tasks where TaskID = "{}" """.format(task_id))
+            conn.commit()
+            return 'Done', 201
+        except Exception as e:
+            return ('Error: {}'.format(e), 500)
+    else:
+        abort(400)
+
+@app.route('/add-tasks', methods=['POST'])
+def add_tasks():
+    if not request.json:
+        abort(400)
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        conn = get_db()
+        cur = conn.cursor()
+        TaskID = request.json['task_id']
+        Title = request.json['title']
+        TotalTime = request.json['total_time']
+        RemainingTime = request.json['remaining_time']
+        DueDate = request.json['due_date']
+        Importance = request.json['importance']
+        Difficulty = request.json['difficulty']
+        Location = request.json['location']
+        UserID = request.json['user_id']
+        Completed = request.json['Completed']
+
+        try:
+            cur.execute("""INSERT INTO Tasks (TaskID, Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Location, UserID)
+                VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(TaskID, Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Completed, Location, UserID))
+            conn.commit()
+
+            return 'Done', 201
+        except Exception as e:
+            return ('Error: {}'.format(e), 500)
+    else:
+        abort(400)
+
+@app.route('/get-calendar/<calendar_id>', methods=['GET'])
+def get_calendar(calendar_id):
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("""SELECT * FROM Calendars WHERE CalendarID = "{}" """.format(calendar_id))
+            query_results = cur.fetchall()
+            return make_response(jsonify(query_results), 200)
+        except Exception as e:
+            return ('Error: {}'.format(e), 500)
+    else:
+        abort(400)
+
+@app.route('/add-calendar', methods=['POST'])
+def add_calendar():
+    if not request.json:
+        abort(400)
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        conn = get_db()
+        cur = conn.cursor()
+        CalendarID = request.json['CalendarID']
+        RefID = request.json['RefID']
+        UserID = request.json['UserID']
+        try:
+            cur.execute("""INSERT INTO Calendars (CalendarID,RefID,UserID)
+                VALUES ("{}", "{}", "{}")""".format(CalendarID, RefID, UserID))
+            conn.commit()
+
+            return 'Done', 201
+        except Exception as e:
+            return ('Error: {}'.format(e), 500)
+    else:
+        abort(400)
+
+@app.route('/update-time/<task_id>', methods=['POST'])
+def update_time(task_id) :
+    if not request.json:
+        abort(400)
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        conn = get_db()
+        cur = conn.cursor()
+        RemainingTime = request.json['RemainingTime']
+        try:
+            cur.execute("""UPDATE Tasks SET RemainingTime = "{}" WHERE TaskID = "{}" """.format(RemainingTime, task_id))
+            conn.commit()
+
+            return 'Done', 201
+        except Exception as e:
+            return ('Error: {}'.format(e), 500)
+    else:
+        abort(400)
+
+
+@app.route('/change-complete/<task_id>', methods=['POST'])
+def change_complete(task_id) :
+    if not request.json:
+        abort(400)
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        conn = get_db()
+        cur = conn.cursor()
+        Completed = request.json['Completed']
+        try:
+            cur.execute("""UPDATE Tasks SET Completed = "{}" WHERE TaskID = "{}" """.format(Completed, task_id)))
+            conn.commit()
+
+            return 'Done', 201
+        except Exception as e:
+            return ('Error: {}'.format(e), 500)
+    else:
+        abort(400)
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
