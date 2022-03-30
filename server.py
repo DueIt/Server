@@ -126,7 +126,7 @@ def get_tasks():
         try:
             cur.execute("""SELECT * FROM Tasks WHERE UserID = "{}" """.format(id))
             query_results = cur.fetchall()
-            res_dict = {}
+            res_list = []
             task = {}
             for i in range(len(query_results)):
                 task = {
@@ -138,9 +138,9 @@ def get_tasks():
                     'difficulty' : query_results[i][5],
                     'location' : query_results[i][6]
                 }
-                res_dict.append(copy.deepcopy(task))
+                res_list.append(copy.deepcopy(task))
                 task.clear()
-            return make_response(jsonify(res_dict), 200)
+            return make_response(jsonify(res_list), 200)
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
@@ -206,7 +206,7 @@ def get_calendar():
         try:
             cur.execute("""SELECT * FROM Calendars WHERE UserID = "{}" """.format(id))
             query_results = cur.fetchall()
-            res_dict = {}
+            res_list = []
             calendar = {}
             for i in range(len(query_results)):
                 calendar = {
@@ -214,9 +214,9 @@ def get_calendar():
                     'ref_id' : query_results[i][1],
                     'user_id' : query_results[i][2]
                 }
-                res_dict.append(copy.deepcopy(calendar))
+                res_list.append(copy.deepcopy(calendar))
                 calendar.clear()
-            return make_response(jsonify(res_dict), 200)
+            return make_response(jsonify(res_list), 200)
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
