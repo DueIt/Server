@@ -86,7 +86,6 @@ def sign_up():
         return ('Error: {}'.format(e), 401)
 
 
-
 @app.route('/sign-in', methods=['POST'])
 def sign_in():
     if not request.json or not 'password' in request.json or not 'email' in request.json:
@@ -130,13 +129,14 @@ def get_tasks():
             task = {}
             for i in range(len(query_results)):
                 task = {
-                    'title' : query_results[i][0],
-                    'total_time' : query_results[i][1],
-                    'remaining_time' : query_results[i][2],
-                    'due_date' : query_results[i][3],
-                    'importance' : query_results[i][4],
-                    'difficulty' : query_results[i][5],
-                    'location' : query_results[i][6]
+                    'task_id' : query_results[i][0],
+                    'title' : query_results[i][1],
+                    'total_time' : query_results[i][2],
+                    'remaining_time' : query_results[i][3],
+                    'due_date' : query_results[i][4],
+                    'importance' : query_results[i][5],
+                    'difficulty' : query_results[i][6],
+                    'location' : query_results[i][7]
                 }
                 res_list.append(copy.deepcopy(task))
                 task.clear()
