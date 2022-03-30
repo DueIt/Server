@@ -128,7 +128,16 @@ def get_tasks():
         try:
             cur.execute("""SELECT * FROM Tasks WHERE UserID = "{}" """.format(id))
             query_results = cur.fetchall()
-            return make_response(jsonify(query_results), 200)
+            res_dict = {
+                'title' : query_results[0],
+                'total_time' : query_results[1],
+                'remaining_time' : query_results[2],
+                'due_date' : query_results[3],
+                'importance' : query_results[4],
+                'difficulty' : query_results[5],
+                'location' : query_results[6]
+            }
+            return make_response(jsonify(res_dict), 200)
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
@@ -145,7 +154,7 @@ def remove_tasks(task_id):
         try:
             cur.execute("""DELETE FROM Tasks where TaskID = "{}" """.format(task_id))
             conn.commit()
-            return 'Done', 201
+            return {'status' : 200}
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
@@ -153,11 +162,16 @@ def remove_tasks(task_id):
 
 @app.route('/add-tasks', methods=['POST'])
 def add_tasks():
-    if not request.json:
+    if (not request.json or not 'title' in request.json
+        or not 'total_time' in request.json
+        or not 'remaining_time' in request.json
+        or not 'due_date' in request.json
+        or not 'importance' in request.json
+        or not 'difficulty' in request.json
+        or not 'location' in request.json):
         abort(400)
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
-
     if id:
         conn = get_db()
         cur = conn.cursor()
@@ -173,7 +187,7 @@ def add_tasks():
                 VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Location, id))
             conn.commit()
 
-            return jwt
+            return {'status' : 200}
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
@@ -189,7 +203,12 @@ def get_calendar():
         try:
             cur.execute("""SELECT * FROM Calendars WHERE UserID = "{}" """.format(id))
             query_results = cur.fetchall()
-            return make_response(jsonify(query_results), 200)
+            res_dict = {
+                'calendar_id' : query_results[0],
+                'ref_id' : query_results[1],
+                'user_id' : query_results[2],
+            }
+            return make_response(jsonify(res_dict), 200)
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
@@ -197,21 +216,19 @@ def get_calendar():
 
 @app.route('/add-calendar', methods=['POST'])
 def add_calendar():
-    if not request.json:
+    if not request.json or not 'ref_id' in request.json:
         abort(400)
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
     if id:
         conn = get_db()
         cur = conn.cursor()
-
-        RefID = request.json['RefID']
+        RefID = request.json['ref_id']
         try:
             cur.execute("""INSERT INTO Calendars (RefID,UserID)
                 VALUES ("{}", "{}")""".format(RefID, id))
             conn.commit()
-
-            return 'Done', 201
+            return {'status' : 200}
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
@@ -219,7 +236,7 @@ def add_calendar():
 
 @app.route('/update-time/<task_id>', methods=['POST'])
 def update_time(task_id) :
-    if not request.json:
+    if not request.json or not 'remaining_time' in request.json:
         abort(400)
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
@@ -230,35 +247,11 @@ def update_time(task_id) :
         try:
             cur.execute("""UPDATE Tasks SET RemainingTime = "{}" WHERE TaskID = "{}" """.format(RemainingTime, task_id))
             conn.commit()
-
-            return 'Done', 201
+            return {'status' : 200}
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
         abort(400)
-
-
-# @app.route('/change-complete/<task_id>', methods=['POST'])
-# def change_complete(task_id) :
-#     if not request.json or not 'completed' in request.json:
-#         abort(400)
-#     jwt = request.headers['Token']
-#     id = get_id_from_jwt(jwt)
-#     if id:
-#         conn = get_db()
-#         cur = conn.cursor()
-#         Completed = request.json['completed']
-#         try:
-#             cur.execute("""UPDATE Tasks SET Completed = "{}" WHERE TaskID = "{}" """.format(Completed, task_id))
-#             conn.commit()
-
-#             return 'Done', 201
-#         except Exception as e:
-#             return ('Error: {}'.format(e), 500)
-#     else:
-#         abort(400)
-
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
