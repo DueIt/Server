@@ -1,13 +1,11 @@
 from flask import Flask, jsonify, request, abort, make_response, g
 from decouple import config
-
 import mysql.connector
 import sys
 import os
-
+import copy
 import hashlib
 import binascii
-
 import jwt
 
 ENDPOINT=config('ENDPOINT')
@@ -128,15 +126,20 @@ def get_tasks():
         try:
             cur.execute("""SELECT * FROM Tasks WHERE UserID = "{}" """.format(id))
             query_results = cur.fetchall()
-            res_dict = {
-                'title' : query_results[0],
-                'total_time' : query_results[1],
-                'remaining_time' : query_results[2],
-                'due_date' : query_results[3],
-                'importance' : query_results[4],
-                'difficulty' : query_results[5],
-                'location' : query_results[6]
-            }
+            res_dict = {}
+            task = {}
+            for i in range(len(query_results)):
+                task = {
+                    'title' : query_results[i][0],
+                    'total_time' : query_results[i][1],
+                    'remaining_time' : query_results[i][2],
+                    'due_date' : query_results[i][3],
+                    'importance' : query_results[i][4],
+                    'difficulty' : query_results[i][5],
+                    'location' : query_results[i][6]
+                }
+                res_dict.append(copy.deepcopy(task))
+                task.clear()
             return make_response(jsonify(res_dict), 200)
         except Exception as e:
             return ('Error: {}'.format(e), 500)
@@ -203,11 +206,16 @@ def get_calendar():
         try:
             cur.execute("""SELECT * FROM Calendars WHERE UserID = "{}" """.format(id))
             query_results = cur.fetchall()
-            res_dict = {
-                'calendar_id' : query_results[0],
-                'ref_id' : query_results[1],
-                'user_id' : query_results[2],
-            }
+            res_dict = {}
+            calendar = {}
+            for i in range(len(query_results)):
+                calendar = {
+                    'calendar_id' : query_results[i][0],
+                    'ref_id' : query_results[i][1],
+                    'user_id' : query_results[i][2]
+                }
+                res_dict.append(copy.deepcopy(calendar))
+                calendar.clear()
             return make_response(jsonify(res_dict), 200)
         except Exception as e:
             return ('Error: {}'.format(e), 500)
