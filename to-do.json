@@ -4,21 +4,24 @@
             "id": 0,
             "title": "App Project",
             "time": 60,
-            "importance": 0,
-            "due-date": "2022-02-10T18:45:00.000Z"
+            "importance": 3,
+            "difficulty": 2,
+            "due-date": "2022-02-9T14:45:00.000Z"
         },
         {
             "id": 1,
             "title": "Automota Homework",
             "time": 180,
-            "importance": 2,
-            "due-date": "2022-02-10T18:45:00.000Z"
+            "importance": 4,
+            "difficulty": 2,
+            "due-date": "2022-02-9T18:45:00.000Z"
         },
         {
             "id": 2,
             "title": "Grocery Shopping",
             "time": 60,
-            "importance": 1,
+            "importance": 2,
+            "difficulty": 0,
             "due-date": "2022-02-10T18:45:00.000Z"
         },
         {
@@ -26,7 +29,8 @@
             "title": "Ethics Readings",
             "time": 30,
             "importance": 0,
-            "due-date": "2022-02-10T18:45:00.000Z"
+            "difficulty": 1,
+            "due-date": "2022-02-11T16:45:00.000Z"
         }
     ]
 }

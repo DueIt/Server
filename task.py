@@ -1,28 +1,29 @@
 
-class task():
+class Task():
 
-    def __init__(self, id, title, total_time, importance, due_date, breakable=True, focus=45):
+    def __init__(self, id, title, total_time, importance, difficulty, due_date, breakable=True):
         self.id = id
         self.title = title
-        self.time_remaining = total_time
         self.total_time = total_time
-        self.importance = importance
         self.due_date = due_date
         self.breakable = breakable
-        self.focus = focus
+        self.subtasks = []
+
+        self.difficulty = difficulty/2 #range 0 to 2 corresponding to easy, medium, hard
+        self.importance = importance/4 #range 0 to 4
+        self.time_remaining = total_time
+        self.proximity = 0
 
 
-    def get_priority():
-        w_i, w_d, w_bp, w_t, w_dd, w_dc = ()
+    def add_subtask(self, subtask):
+        self.subtasks.append(subtask)
+        if len(self.subtasks) == 1:
+            self.proximity = 1
+            return
 
-    def get_slots():
-        if not breakable:
-            return [self.time_remaining]
-        else:
-            slots = []
-            time = self.time_remaining
-            while time > 0:
-                slot = min(time, self.focus)
-                time -= slot
-                slots.append(slot)
-            return slots
+        adjacent = 0
+        for i in range(1, len(self.subtasks)):
+            if self.subtasks[i - 1]["end"] == self.subtasks[i]["start"]:
+                adjacent += 1
+        
+        self.proximity = adjacent / (len(self.subtasks) - 1.0)

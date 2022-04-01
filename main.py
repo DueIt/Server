@@ -1,5 +1,6 @@
 from schedule import schedule, datetime_from_utc_to_local
-from task import task
+from task import Task
+from ga import Cluster, GA
 
 import json
 from datetime import datetime, timedelta
@@ -37,16 +38,26 @@ cal = schedule(processed_events, startDate, ["14:00", "22:00"])
 
 init_tasks = []
 for todo in todos["items"]:
-    new_task = task(
+    new_task = Task(
         todo["id"],
         todo["title"],
         todo["time"],
         todo["importance"],
-        todo["due-date"],
+        todo["difficulty"],
+        datetime.strptime(todo["due-date"], "%Y-%m-%dT%H:%M:%S.%fZ"),
     )
     init_tasks.append(new_task)
 
 
-tasks = cal.schedule_tasks(init_tasks)
-for task in tasks:
-    print(task["id"], datetime_from_utc_to_local(task["start"]), datetime_from_utc_to_local(task["end"]))
+# tasks = cal.schedule_tasks(init_tasks)
+# for task in tasks:
+#     for subtask in task.subtasks:
+#         print(task.id, datetime_from_utc_to_local(subtask["start"]), datetime_from_utc_to_local(subtask["end"]))
+
+ga = GA(cal, init_tasks)
+res = ga.optimize()
+
+print(res[1])
+for task in res[0].tasks:
+    for subtask in task.subtasks:
+        print(task.id, datetime_from_utc_to_local(subtask["start"]), datetime_from_utc_to_local(subtask["end"]))
