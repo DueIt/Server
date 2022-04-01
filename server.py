@@ -140,7 +140,10 @@ def get_tasks():
                 }
                 res_list.append(copy.deepcopy(task))
                 task.clear()
-            return make_response(jsonify(res_list), 200)
+                json_return = {
+                    'tasks' : res_list
+                }
+            return make_response(jsonify(json_return), 200)
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
@@ -216,7 +219,10 @@ def get_calendar():
                 }
                 res_list.append(copy.deepcopy(calendar))
                 calendar.clear()
-            return make_response(jsonify(res_list), 200)
+            json_return = {
+                'calendars' : res_list
+            }
+            return make_response(jsonify(json_return), 200)
         except Exception as e:
             return ('Error: {}'.format(e), 500)
     else:
