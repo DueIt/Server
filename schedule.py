@@ -106,6 +106,7 @@ class schedule():
         new_tasks = copy.deepcopy(tasks)
 
         while slot_i < len(temp_slot_times) and task_i < len(tasks):
+            # consider adding in a random number where it might decide to skip a spot
             if temp_slot_times[slot_i] >= 10:
                 if temp_slot_times[slot_i] > new_tasks[task_i].time_remaining:
                     new_task = {

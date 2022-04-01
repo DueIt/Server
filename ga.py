@@ -2,11 +2,13 @@ from random import randrange
 import random
 from schedule import schedule, datetime_from_utc_to_local
 import math
+import copy
 
 class Cluster():
 
-    def __init__(self, tasks):
+    def __init__(self, tasks, calendar):
         self.tasks = tasks
+        self.cal = calendar
 
         #positives
         self.proximity_weight = 1
@@ -41,14 +43,28 @@ class Cluster():
 
 
     def move(self):
-        pass
+        tries = 0
+        subtask = None
+        task = None
+        new_tasks = copy.deepcopy(self.tasks)
+        while not subtask and tries < 5:
+            tries += 1
+            task_pick = random.randint(0, len(self.tasks) - 1)
+            task = new_tasks[task_pick]
+            if task.subtasks:
+                subtask = task.subtasks[0]
+        locked_time = [(subtask["start"], subtask["end"])]
+        subtask_time = (subtask["end"] - subtask["start"]).total_seconds()
+        task.time_remaining += subtask_time
+        self.tasks = self.cal.schedule_tasks(new_tasks)
 
 
     def mutate(self):
         pick = random.randint(0, 2)
         if pick == 0:
-            return self.swap()
-        return self.move()
+            self.swap()
+        else:
+            self.move()
 
 
 
@@ -60,11 +76,11 @@ class GA():
         self.cluster_count = cluster_count
 
 
-    def optimize(self, threshold=0.8, max_iteraions=1):
+    def optimize(self, threshold=0.8, max_iteraions=50):
         clusters = []
         for _ in range(self.cluster_count):
             shuffled = random.sample(self.tasks, len(self.tasks))
-            new_cluster = Cluster(self.cal.schedule_tasks(shuffled))
+            new_cluster = Cluster(self.cal.schedule_tasks(shuffled), self.cal)
             clusters.append(new_cluster)
 
         iterations = 0
@@ -91,5 +107,7 @@ class GA():
             new_clusters = []
             for i, seed_cluster in enumerate(top_clusters):
                 for _ in range(distribution[i]):
-                    new_clusters.append(self.make_cluster(seed_cluster))
+                    new_cluster = copy.deepcopy(clusters[seed_cluster])
+                    new_cluster.mutate()
+                    new_clusters.append(new_cluster)
             clusters = new_clusters
