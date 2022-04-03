@@ -1,8 +1,10 @@
 import json
 from datetime import datetime, timedelta
 import time
+import copy
+import random
 
-from task import task
+from task import Task
 
 
 class schedule():
@@ -12,7 +14,7 @@ class schedule():
         self.startDate = startDate
         self.workHours = workHours
         self.days = days
-        self.free_time = self.find_free_time()
+        self.free_time, self.slot_times = self.find_free_time()
 
     def calc_workable_windows(self):
         endDate = self.startDate + timedelta(days=self.days)
@@ -39,7 +41,7 @@ class schedule():
                 newWorkEndTime += timedelta(days=1)
         return windows
 
-    def find_free_time(self):
+    def find_free_time(self, locked_time=None):
         # TODO: remove events that are not between start and end dates
 
         tstart = self.startDate
@@ -47,6 +49,9 @@ class schedule():
 
         no_work = self.calc_workable_windows()
         events_work = no_work + self.events
+
+        if locked_time:
+            events_work = events_work + locked_time
         
         events_work = sorted(events_work, key=lambda k: k[0])
         tp = [(tstart, tstart)] + events_work
@@ -71,51 +76,66 @@ class schedule():
             i += 1
             
         free_time = sorted(free_time, key=lambda k: k[0])
-        return free_time
+        slot_times = []
+        for start, end in free_time:
+            slot = int((end - start).total_seconds() / 60)
+            slot -= slot % 10
+            slot_times.append(slot)
+
+        #part of the constructor basically
+        return (free_time, slot_times)
 
 
-    def schedule_tasks(self, tasks):
+    def schedule_tasks(self, tasks, locked_time=None):
         if len(tasks) == 0:
             return []
-        
 
-        slot_times = [int((end - start).total_seconds() / 60) for start, end in self.free_time]
-        # TODO: Order the tasks here so that we can then go down the order
+        available_times = None
+        temp_slot_times = None
+
+        if locked_time:
+            available_times, temp_slot_times = self.find_free_time(locked_time)
+        else:
+            available_times = self.free_time
+            temp_slot_times = self.slot_times.copy()
+
+
         scheduled = []
         slot_i = 0
         task_i = 0
         space = True
-        while slot_i < len(slot_times) and task_i < len(tasks):
-            if slot_times[slot_i] > 10:
-                if slot_times[slot_i] > tasks[task_i].time_remaining:
+        new_tasks = copy.deepcopy(tasks)
+
+        while slot_i < len(temp_slot_times) and task_i < len(tasks):
+            if temp_slot_times[slot_i] >= 10:
+                if temp_slot_times[slot_i] > new_tasks[task_i].time_remaining:
                     new_task = {
-                        "id": tasks[task_i].id,
-                        "start": (self.free_time[slot_i][1] - timedelta(minutes=slot_times[slot_i])),
-                        "end": (self.free_time[slot_i][1] - timedelta(minutes=slot_times[slot_i] - tasks[task_i].time_remaining)),
+                        "start": (available_times[slot_i][1] - timedelta(minutes=temp_slot_times[slot_i])),
+                        "end": (available_times[slot_i][1] - timedelta(minutes=temp_slot_times[slot_i] - new_tasks[task_i].time_remaining)),
                     }
-                    # print(new_task)
-                    slot_times[slot_i] -= tasks[task_i].time_remaining
-                    scheduled.append(new_task)
-                    tasks[task_i].time_remaining = 0
+                    temp_slot_times[slot_i] -= new_tasks[task_i].time_remaining
+                    new_tasks[task_i].add_subtask(new_task)
+                    new_tasks[task_i].time_remaining = 0
                     
                 else:
                     new_task = {
-                        "id": tasks[task_i].id,
-                        "start": (self.free_time[slot_i][1] - timedelta(minutes=slot_times[slot_i])),
-                        "end": (self.free_time[slot_i][1]),
+                        "start": (available_times[slot_i][1] - timedelta(minutes=temp_slot_times[slot_i])),
+                        "end": (available_times[slot_i][1]),
                     }
-                    tasks[task_i].time_remaining -= slot_times[slot_i]
-                    # print(new_task)
-                    scheduled.append(new_task)
-                    slot_times[slot_i] = 0
+                    new_tasks[task_i].time_remaining -= temp_slot_times[slot_i]
+                    new_tasks[task_i].add_subtask(new_task)
+                    temp_slot_times[slot_i] = 0
                     
-                if slot_times[slot_i] <= 0:
-                    slot_i += 1
-                if tasks[task_i].time_remaining <= 0:
+                if temp_slot_times[slot_i] <= 0:
+                    # adding in a random number where it might decide to skip a spot
+                    slot_skip_count = random.randint(1, 4)
+                    slot_skip_count = min(len(temp_slot_times) - 1 - slot_i, slot_skip_count)
+                    slot_i += max(1, slot_skip_count)
+                if new_tasks[task_i].time_remaining <= 0:
                     task_i += 1
             else:
                 slot_i += 1
-        return scheduled
+        return new_tasks
 
 
 
