@@ -11,7 +11,7 @@ class Cluster():
         self.cal = calendar
 
         #positives
-        self.proximity_weight = 1
+        self.proximity_weight = 0.6
         self.importance_weight = 0.4
         self.difficulty_weight = 0.2
 
@@ -26,16 +26,40 @@ class Cluster():
         if task.subtasks:
             time_lost = (task.subtasks[-1]["end"] - start_date).total_seconds()
         time_diff = math.tanh((time_left - time_lost) / 172800)
+        if time_diff <= 0:
+            time_diff = 1.5
 
         return self.proximity_weight * task.proximity - \
                self.due_weight * time_diff   
 
 
+    def calc_ordered_value(self, arr):
+        if len(arr) == 0:
+            return 0
+        total = 0
+        for i, val in enumerate(arr):
+            for j in range(i, len(arr)):
+                if arr[j] > val:
+                    total += 1
+        return total
+
+
     def calc_fitness(self, start_date):
         total_fitness = 0
+        importance_list = []
         for task in self.tasks:
+            # this needs to be adjusted to use end of last subtask
+            importance_list.append(task.importance)
             total_fitness += self.calc_task_fitness(task, start_date)
-        return total_fitness / len(self.tasks)
+
+        importance_ordered = importance_list
+        worst_case = sorted(importance_list)
+
+        total_importance = 1 - (self.calc_ordered_value(importance_ordered) / self.calc_ordered_value(worst_case))
+        res_fitness = total_fitness / len(self.tasks)
+        res_fitness += self.importance_weight * total_importance
+        
+        return res_fitness
 
     
     def swap(self):
@@ -62,6 +86,7 @@ class Cluster():
     def mutate(self):
         pick = random.randint(0, 2)
         if pick == 0:
+            # does nothing currently
             self.swap()
         else:
             self.move()
@@ -76,7 +101,7 @@ class GA():
         self.cluster_count = cluster_count
 
 
-    def optimize(self, threshold=0.8, max_iteraions=50):
+    def optimize(self, threshold=0.7, max_iteraions=50):
         clusters = []
         for _ in range(self.cluster_count):
             shuffled = random.sample(self.tasks, len(self.tasks))

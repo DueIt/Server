@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timedelta
 import time
 import copy
+import random
 
 from task import Task
 
@@ -106,7 +107,6 @@ class schedule():
         new_tasks = copy.deepcopy(tasks)
 
         while slot_i < len(temp_slot_times) and task_i < len(tasks):
-            # consider adding in a random number where it might decide to skip a spot
             if temp_slot_times[slot_i] >= 10:
                 if temp_slot_times[slot_i] > new_tasks[task_i].time_remaining:
                     new_task = {
@@ -127,7 +127,10 @@ class schedule():
                     temp_slot_times[slot_i] = 0
                     
                 if temp_slot_times[slot_i] <= 0:
-                    slot_i += 1
+                    # adding in a random number where it might decide to skip a spot
+                    slot_skip_count = random.randint(1, 4)
+                    slot_skip_count = min(len(temp_slot_times) - 1 - slot_i, slot_skip_count)
+                    slot_i += max(1, slot_skip_count)
                 if new_tasks[task_i].time_remaining <= 0:
                     task_i += 1
             else:

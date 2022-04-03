@@ -10,9 +10,7 @@ startDate = "2022-02-08T14:30:00.000Z"
 days = 7
 priorities = ["end-date", "priority"]
 workDays = ["weekdays", "weekends", "all"]
-workTime = ["14:00", "22:00"] #utc times. Same as 9 to 5
-focusTime = 45
-breakTime = 15
+workTime = ["14:00", "22:00"]
 
 f = open('classes.json')
 events = json.load(f)
@@ -33,8 +31,6 @@ processed_events = event_string_to_date(events['items'])
 startDate = datetime.strptime("2022-02-08T14:30:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
 
 cal = schedule(processed_events, startDate, ["14:00", "22:00"])
-# for start, end in cal.free_time:
-#     print(datetime_from_utc_to_local(start), datetime_from_utc_to_local(end))
 
 init_tasks = []
 for todo in todos["items"]:
@@ -48,16 +44,11 @@ for todo in todos["items"]:
     )
     init_tasks.append(new_task)
 
-
-# tasks = cal.schedule_tasks(init_tasks)
-# for task in tasks:
-#     for subtask in task.subtasks:
-#         print(task.id, datetime_from_utc_to_local(subtask["start"]), datetime_from_utc_to_local(subtask["end"]))
-
 ga = GA(cal, init_tasks)
-res = ga.optimize()
+res = ga.optimize(max_iteraions=50)
 
 print(res[1])
 for task in res[0].tasks:
     for subtask in task.subtasks:
-        print(task.id, datetime_from_utc_to_local(subtask["start"]), datetime_from_utc_to_local(subtask["end"]))
+        # print(task.id, datetime_from_utc_to_local(subtask["start"]), datetime_from_utc_to_local(subtask["end"]))
+        print(task.id, subtask["start"], subtask["end"])
