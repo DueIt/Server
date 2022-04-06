@@ -6,15 +6,15 @@
             "time": 60,
             "importance": 3,
             "difficulty": 2,
-            "due-date": "2022-02-9T14:45:00.000Z"
+            "due-date": "2022-02-14T14:45:00.000Z"
         },
         {
             "id": 1,
             "title": "Automota Homework",
             "time": 180,
-            "importance": 4,
+            "importance": 2,
             "difficulty": 2,
-            "due-date": "2022-02-9T18:45:00.000Z"
+            "due-date": "2022-02-14T18:45:00.000Z"
         },
         {
             "id": 2,
@@ -22,15 +22,15 @@
             "time": 60,
             "importance": 2,
             "difficulty": 0,
-            "due-date": "2022-02-10T18:45:00.000Z"
+            "due-date": "2022-02-14T18:45:00.000Z"
         },
         {
             "id": 3,
             "title": "Ethics Readings",
             "time": 30,
-            "importance": 0,
+            "importance":0,
             "difficulty": 1,
-            "due-date": "2022-02-11T16:45:00.000Z"
+            "due-date": "2022-02-9T16:45:00.000Z"
         }
     ]
 }

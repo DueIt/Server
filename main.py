@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timedelta
 import time
 
-startDate = "2022-02-08T14:30:00.000Z"
+startDate = "2022-02-08T14:00:00.000Z"
 days = 7
 priorities = ["end-date", "priority"]
 workDays = ["weekdays", "weekends", "all"]
@@ -28,7 +28,7 @@ def event_string_to_date(windows):
     return date_windows
 
 processed_events = event_string_to_date(events['items'])
-startDate = datetime.strptime("2022-02-08T14:30:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
+startDate = datetime.strptime(startDate, "%Y-%m-%dT%H:%M:%S.%fZ")
 
 cal = schedule(processed_events, startDate, ["14:00", "22:00"])
 
@@ -45,7 +45,7 @@ for todo in todos["items"]:
     init_tasks.append(new_task)
 
 ga = GA(cal, init_tasks)
-res = ga.optimize(max_iteraions=50)
+res = ga.optimize(max_iteraions=1000)
 
 print(res[1])
 for task in res[0].tasks:

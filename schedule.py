@@ -16,6 +16,12 @@ class schedule():
         self.days = days
         self.free_time, self.slot_times = self.find_free_time()
 
+    def work_schedule(self):
+        time_delta = datetime.strptime(self.workHours[1], "%H:%M") - datetime.strptime(self.workHours[0], "%H:%M")
+        minutes = int(time_delta.total_seconds() / 60)
+        # format is days, hours per day
+        return self.days, minutes
+
     def calc_workable_windows(self):
         endDate = self.startDate + timedelta(days=self.days)
         workStart = datetime.strptime(self.workHours[0], "%H:%M").time()
@@ -86,28 +92,39 @@ class schedule():
         return (free_time, slot_times)
 
 
-    def schedule_tasks(self, tasks, locked_time=None):
+    def schedule_tasks(self, tasks, locked_time=None, jump=False):
         if len(tasks) == 0:
             return []
 
         available_times = None
         temp_slot_times = None
 
+        # need to update this so that allocated tasks are also considered as events
         if locked_time:
-            available_times, temp_slot_times = self.find_free_time(locked_time)
+            new_locked_times = locked_time.copy()
+            for task in tasks:
+                for subtask in task.subtasks:
+                    new_locked_times.append((subtask["start"], subtask["end"]))
+            available_times, temp_slot_times = self.find_free_time(locked_time=new_locked_times)
         else:
             available_times = self.free_time
             temp_slot_times = self.slot_times.copy()
-
-
+            
         scheduled = []
         slot_i = 0
         task_i = 0
         space = True
         new_tasks = copy.deepcopy(tasks)
 
+        total_task_time = 0
+        if jump:
+            for task in tasks:
+                total_task_time += task.time_remaining
+            max_slot = max(0, len(temp_slot_times) - 1 - int(total_task_time / 10))
+            slot_i = random.randint(1, max_slot)
+
         while slot_i < len(temp_slot_times) and task_i < len(tasks):
-            if temp_slot_times[slot_i] >= 10:
+            if temp_slot_times[slot_i] >= 10 and new_tasks[task_i].time_remaining > 0:
                 if temp_slot_times[slot_i] > new_tasks[task_i].time_remaining:
                     new_task = {
                         "start": (available_times[slot_i][1] - timedelta(minutes=temp_slot_times[slot_i])),
@@ -128,11 +145,13 @@ class schedule():
                     
                 if temp_slot_times[slot_i] <= 0:
                     # adding in a random number where it might decide to skip a spot
-                    slot_skip_count = random.randint(1, 4)
+                    slot_skip_count = random.randint(1, 3)
                     slot_skip_count = min(len(temp_slot_times) - 1 - slot_i, slot_skip_count)
                     slot_i += max(1, slot_skip_count)
                 if new_tasks[task_i].time_remaining <= 0:
                     task_i += 1
+            elif new_tasks[task_i].time_remaining <= 0:
+                task_i += 1
             else:
                 slot_i += 1
         return new_tasks
@@ -160,7 +179,7 @@ if __name__ == "__main__":
         return date_windows
 
     processed_events = event_string_to_date(events['items'])
-    startDate = datetime.strptime("2022-02-08T14:30:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
+    startDate = datetime.strptime("2022-02-09T14:30:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
 
     cal = schedule(processed_events, startDate, ["14:00", "22:00"])
     for start, end in cal.free_time:
