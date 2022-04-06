@@ -165,7 +165,7 @@ class GA():
         self.cluster_count = cluster_count
 
 
-    def optimize(self, threshold=0.8, max_iteraions=50):
+    def optimize(self, change_threshold=0.03, max_iteraions=50):
         clusters = []
         for _ in range(self.cluster_count):
             shuffled = random.sample(self.tasks, len(self.tasks))
@@ -174,6 +174,8 @@ class GA():
 
         iterations = 0
         fitnesses = {}
+        past_data = []
+        past_data_size = 10
         while iterations < max_iteraions:
             iterations += 1
             
@@ -184,8 +186,14 @@ class GA():
             fitnesses = {k: v for k, v in sorted(fitnesses.items(), key=lambda item: item[1], reverse=True)}
             top_fitness = list(fitnesses.values())[0]
 
-            # Bit of a sketchy breakout. Should work though I hope?
-            if top_fitness > threshold or max_iteraions == iterations:
+            flattened = False
+            past_data.append(top_fitness)
+            if len(past_data) > past_data_size:
+                del past_data[0]
+                if max(past_data) - min(past_data) < change_threshold:
+                    flattened = True
+
+            if flattened or max_iteraions == iterations:
                 return (clusters[list(fitnesses.keys())[0]], top_fitness)
 
             top_clusters = list(fitnesses.keys())[0:max(int(self.cluster_count * 0.1), 2)]
