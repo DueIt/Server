@@ -1,3 +1,4 @@
+from __future__ import print_function
 from flask import Flask, jsonify, request, abort, make_response, g
 from decouple import config
 import mysql.connector
@@ -7,7 +8,7 @@ import copy
 import hashlib
 import binascii
 import jwt
-from __future__ import print_function
+
 
 import datetime
 import os.path
@@ -180,10 +181,62 @@ def remove_tasks(task_id):
         abort(400)
 
 @app.route('/getrecentevents', methods=['GET'])
-def remove_tasks(task_id):
+def getgooglecalevents():
+    # jwt = request.headers['Token']
+    # id = get_id_from_jwt(jwt)
+    # if id:
+    """Shows basic usage of the Google Calendar API.
+    Prints the start and name of the next 10 events on the user's calendar.
+    """
+    creds = None
+    # The file token.json stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentialsoauth.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
+
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+
+        # Call the Calendar API
+        now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+        print('Getting the upcoming 10 events')
+        events_result = service.events().list(calendarId='primary', timeMin=now,
+                                            maxResults=10, singleEvents=True,
+                                            orderBy='startTime').execute()
+        events = events_result.get('items', [])
+
+        if not events:
+            print('No upcoming events found.')
+            return
+        
+        # Prints the start and name of the next 10 events
+        for event in events:
+            start = event['start'].get('dateTime', event['start'].get('date'))
+            print(start, event['summary'])
+
+    except HttpError as error:
+        print('An error occurred: %s' % error)
+
+    return {'status' : 200}
+
+@app.route('/getcalendarlist', methods=['GET'])
+def get_cal_list():
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
     if id:
+        print(id)
         """Shows basic usage of the Google Calendar API.
         Prints the start and name of the next 10 events on the user's calendar.
         """
@@ -210,58 +263,69 @@ def remove_tasks(task_id):
 
             # Call the Calendar API
             now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
-            print('Getting the upcoming 10 events')
-            events_result = service.events().list(calendarId='primary', timeMin=now,
-                                                maxResults=10, singleEvents=True,
-                                                orderBy='startTime').execute()
-            events = events_result.get('items', [])
-
-            if not events:
-                print('No upcoming events found.')
+            print('Getting your calendars')
+            
+            calendar_list = service.calendarList().list().execute()
+            cal_list = calendar_list.get('items', [])
+            
+            if not cal_list:
+                print('No calendars found.')
                 return
 
-            # Prints the start and name of the next 10 events
-            for event in events:
-                start = event['start'].get('dateTime', event['start'].get('date'))
-                print(start, event['summary'])
+            res_list = []
+            for cal in cal_list:
+                # print(cal)
+                print(cal['summary'], cal['id'])
+                cal = {
+                        'cal_id' : cal['id'],
+                        'summary' : cal['summary'],
+                }
+                res_list.append(copy.deepcopy(cal))
+                cal.clear()
+                json_return = {
+                    'calendars' : res_list
+                }
+            return make_response(jsonify(json_return), 200)
 
         except HttpError as error:
             print('An error occurred: %s' % error)
+
+        # return {'status' : 200}
     else:
         abort(400)
 
-@app.route('/add-tasks', methods=['POST'])
-def add_tasks():
-    if (not request.json or not 'title' in request.json
-        or not 'total_time' in request.json
-        or not 'remaining_time' in request.json
-        or not 'due_date' in request.json
-        or not 'importance' in request.json
-        or not 'difficulty' in request.json
-        or not 'location' in request.json):
-        abort(400)
-    jwt = request.headers['Token']
-    id = get_id_from_jwt(jwt)
-    if id:
-        conn = get_db()
-        cur = conn.cursor()
-        Title = request.json['title']
-        TotalTime = request.json['total_time']
-        RemainingTime = request.json['remaining_time']
-        DueDate = request.json['due_date']
-        Importance = request.json['importance']
-        Difficulty = request.json['difficulty']
-        Location = request.json['location']
-        try:
-            cur.execute("""INSERT INTO Tasks (Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Location, UserID)
-                VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Location, id))
-            conn.commit()
+# @app.route('/add-tasks', methods=['POST'])
+# def add_tasks():
+#     if (not request.json or not 'title' in request.json
+#         or not 'total_time' in request.json
+#         or not 'remaining_time' in request.json
+#         or not 'due_date' in request.json
+#         or not 'importance' in request.json
+#         or not 'difficulty' in request.json
+#         or not 'location' in request.json):
+#         abort(400)
+#     jwt = request.headers['Token']
+#     id = get_id_from_jwt(jwt)
+#     if id:
+#         conn = get_db()
+#         cur = conn.cursor()
+#         Title = request.json['title']
+#         TotalTime = request.json['total_time']
+#         RemainingTime = request.json['remaining_time']
+#         DueDate = request.json['due_date']
+#         Importance = request.json['importance']
+#         Difficulty = request.json['difficulty']
+#         Location = request.json['location']
+#         try:
+#             cur.execute("""INSERT INTO Tasks (Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Location, UserID)
+#                 VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(Title, TotalTime, RemainingTime, DueDate, Importance, Difficulty, Location, id))
+#             conn.commit()
 
-            return {'status' : 200}
-        except Exception as e:
-            return ('Error: {}'.format(e), 500)
-    else:
-        abort(400)
+#             return {'status' : 200}
+#         except Exception as e:
+#             return ('Error: {}'.format(e), 500)
+#     else:
+#         abort(400)
 
 @app.route('/get-calendar', methods=['GET'])
 def get_calendar():
