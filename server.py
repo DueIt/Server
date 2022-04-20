@@ -189,6 +189,9 @@ def getgooglecalevents():
     Prints the start and name of the next 10 events on the user's calendar.
     """
     creds = None
+
+    cur.execute("""SELECT * FROM GoogleOauth WHERE UserID = "{}" """.format(id))
+    query_results = cur.fetchall()
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
@@ -236,27 +239,40 @@ def get_cal_list():
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
     if id:
+        conn = get_db()
+        cur = conn.cursor()
         print(id)
-        """Shows basic usage of the Google Calendar API.
-        Prints the start and name of the next 10 events on the user's calendar.
-        """
         creds = None
-        # The file token.json stores the user's access and refresh tokens, and is
-        # created automatically when the authorization flow completes for the first
-        # time.
-        if os.path.exists('token.json'):
-            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        # If there are no (valid) credentials available, let the user log in.
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    'credentialsoauth.json', SCOPES)
-                creds = flow.run_local_server(port=0)
-            # Save the credentials for the next run
-            with open('token.json', 'w') as token:
-                token.write(creds.to_json())
+        try:
+            cur.execute("""SELECT * FROM GoogleOauth WHERE UserID = "{}" """.format(id))
+            query_results = cur.fetchall()
+            if len(query_results) > 0:
+                for i in range(len(query_results)):
+                    tokenJson = {
+                        'token' : query_results[i][1],
+                        'refresh_token' : query_results[i][2],
+                        'token_uri' : query_results[i][3],
+                        'client_id' : query_results[i][4],
+                        'client_secret' : query_results[i][5],
+                        'scopes' : query_results[i][6],
+                        'expiry' : query_results[i][7]
+                    }
+                    # what to do with this?
+                    creds = Credentials.from_authorized_user_info(tokenJson, SCOPES)
+                    tokenJson.clear()
+            if not creds or not creds.valid:
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                else:
+                    flow = InstalledAppFlow.from_client_secrets_file(
+                        'credentialsoauth.json', SCOPES)
+                    creds = flow.run_local_server(port=0)
+                credsJson = creds.to_json()
+                cur.execute("""INSERT INTO GoogleOauth (UserID, token, refresh_token, token_uri, client_id, client_secret, scopes, expiry) VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(id, credsJson['token'], credsJson['refresh_token'],credsJson['token_uri'], credsJson['client_id'], credsJson['client_secret'], credsJson['scopes'], credsJson['expiry']))
+                conn.commit()
+        except Exception as e:
+            print(e)
+            return ('Error: {}'.format(e), 401)
 
         try:
             service = build('calendar', 'v3', credentials=creds)
