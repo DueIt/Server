@@ -8,6 +8,7 @@ import copy
 import hashlib
 import binascii
 import jwt
+import json
 
 
 import datetime
@@ -262,12 +263,19 @@ def get_cal_list():
                     tokenJson.clear()
             if not creds or not creds.valid:
                 if creds and creds.expired and creds.refresh_token:
+                    print('no creds')
                     creds.refresh(Request())
                 else:
+                    print('creds fine')
                     flow = InstalledAppFlow.from_client_secrets_file(
                         'credentialsoauth.json', SCOPES)
                     creds = flow.run_local_server(port=0)
-                credsJson = creds.to_json()
+                print(creds)
+                temp = creds.to_json()
+                credsJson = json.loads(temp)
+                print(credsJson)
+                # print(credsJson[0])
+                print(credsJson['token'])
                 cur.execute("""INSERT INTO GoogleOauth (UserID, token, refresh_token, token_uri, client_id, client_secret, scopes, expiry) VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(id, credsJson['token'], credsJson['refresh_token'],credsJson['token_uri'], credsJson['client_id'], credsJson['client_secret'], credsJson['scopes'], credsJson['expiry']))
                 conn.commit()
         except Exception as e:
