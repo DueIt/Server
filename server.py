@@ -62,14 +62,26 @@ def get_google_token(id):
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
+                temp = creds.to_json()
+                credsJson1 = json.loads(temp)
+                cur.execute("""UPDATE GoogleOauth 
+                SET 
+                token = "{}", 
+                refresh_token = "{}", 
+                token_uri = "{}", 
+                client_id = "{}", 
+                client_secret = "{}", 
+                scopes = "{}", 
+                expiry = "{}" WHERE UserID = "{}" """.format(credsJson1['token'], credsJson1['refresh_token'],credsJson1['token_uri'], credsJson1['client_id'], credsJson1['client_secret'], credsJson1['scopes'], credsJson1['expiry'], id))
+                conn.commit()
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
                     'credentialsoauth.json', SCOPES)
                 creds = flow.run_local_server(port=0)
-            temp = creds.to_json()
-            credsJson = json.loads(temp)
-            cur.execute("""INSERT INTO GoogleOauth (UserID, token, refresh_token, token_uri, client_id, client_secret, scopes, expiry) VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(id, credsJson['token'], credsJson['refresh_token'],credsJson['token_uri'], credsJson['client_id'], credsJson['client_secret'], credsJson['scopes'], credsJson['expiry']))
-            conn.commit()
+                temp = creds.to_json()
+                credsJson = json.loads(temp)
+                cur.execute("""INSERT INTO GoogleOauth (UserID, token, refresh_token, token_uri, client_id, client_secret, scopes, expiry) VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(id, credsJson['token'], credsJson['refresh_token'],credsJson['token_uri'], credsJson['client_id'], credsJson['client_secret'], credsJson['scopes'], credsJson['expiry']))
+                conn.commit()
         return creds
     except Exception as e:
         print(e)
@@ -221,55 +233,54 @@ def remove_tasks(task_id):
 
 @app.route('/getrecentevents', methods=['GET'])
 def getgooglecalevents():
-    # jwt = request.headers['Token']
-    # id = get_id_from_jwt(jwt)
-    # if id:
-    """Shows basic usage of the Google Calendar API.
-    Prints the start and name of the next 10 events on the user's calendar.
-    """
-    creds = None
+    jwt = request.headers['Token']
+    calID = request.headers['CalID']
+    id = get_id_from_jwt(jwt)
+    if id:
+        creds = get_google_token(id)
+        ev_list = []
+        try:
+            service = build('calendar', 'v3', credentials=creds)
 
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentialsoauth.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+            # Call the Calendar API
+            now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+            aWeekFromNow = (datetime.datetime.utcnow() + datetime.timedelta(days=7)).isoformat() + 'Z'
+            print(now, aWeekFromNow)
+            events_result = service.events().list(calendarId=calID, timeMin=now,
+                                                timeMax=aWeekFromNow, singleEvents=True,
+                                                orderBy='startTime').execute()
+            events = events_result.get('items', [])
 
-    try:
-        service = build('calendar', 'v3', credentials=creds)
+            if not events:
+                print('No upcoming events found.')
+                json_return = {
+                    'events' : ev_list
+                }
+                return make_response(jsonify(json_return), 200)
 
-        # Call the Calendar API
-        now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
-        print('Getting the upcoming 10 events')
-        events_result = service.events().list(calendarId='primary', timeMin=now,
-                                            maxResults=10, singleEvents=True,
-                                            orderBy='startTime').execute()
-        events = events_result.get('items', [])
+            # Prints the start and name of the next 10 events
+            
+            for event in events:
+                start = event['start'].get('dateTime', event['start'].get('date'))
+                ev = {
+                        'event_id' : event['etag'],
+                        'summary' : event['summary'],
+                        'start_time': start,
+                }
+                ev_list.append(copy.deepcopy(ev))
+                ev.clear()
+                json_return = {
+                    'events' : ev_list
+                }
+            print(ev_list)
+            return make_response(jsonify(json_return), 200)
+                
 
-        if not events:
-            print('No upcoming events found.')
-            return
+        except HttpError as error:
+            print('An error occurred: %s' % error)
 
-        # Prints the start and name of the next 10 events
-        for event in events:
-            start = event['start'].get('dateTime', event['start'].get('date'))
-            print(start, event['summary'])
-
-    except HttpError as error:
-        print('An error occurred: %s' % error)
-
-    return {'status' : 200}
+    else:
+        abort(400)
 
 @app.route('/getcalendarlist', methods=['GET'])
 def get_cal_list():
