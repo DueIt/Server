@@ -27,3 +27,18 @@ class Task():
                 adjacent += 1
         
         self.proximity = adjacent / (len(self.subtasks) - 1.0)
+
+    def to_json(self):
+        res = []
+        for subtask in self.subtasks:
+            res.append(
+                dict({
+                    'id': self.id,
+                    'title': self.title,
+                    'difficulty': self.difficulty,
+                    'importance': self.importance,
+                    'start': subtask["start"], 
+                    'end': subtask["end"],
+                })
+            )
+        return res

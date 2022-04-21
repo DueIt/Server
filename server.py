@@ -7,6 +7,14 @@ import copy
 import hashlib
 import binascii
 import jwt
+import json
+from datetime import datetime, timedelta
+import time
+import itertools
+
+from schedule import schedule, datetime_from_utc_to_local
+from task import Task
+from ga import Cluster, GA
 
 ENDPOINT=config('ENDPOINT')
 PORT=config('PORT')
@@ -115,37 +123,44 @@ def sign_in():
         return ('Error: {}'.format(e), 500)
 
 
+def get_task_request(id):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""SELECT * FROM Tasks WHERE UserID = "{}" """.format(id))
+        query_results = cur.fetchall()
+        res_list = []
+        task = {}
+        for i in range(len(query_results)):
+            task = {
+                'task_id' : query_results[i][0],
+                'title' : query_results[i][1],
+                'total_time' : query_results[i][2],
+                'remaining_time' : query_results[i][3],
+                'due_date' : query_results[i][4],
+                'importance' : query_results[i][5],
+                'difficulty' : query_results[i][6],
+                'location' : query_results[i][7]
+            }
+            res_list.append(copy.deepcopy(task))
+            task.clear()
+        json_return = {
+            'tasks' : res_list
+        }
+        return (True, json_return)
+    except Exception as e:
+        return (False, e)
+
 @app.route('/get-tasks', methods=['GET'])
 def get_tasks():
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
     if id:
-        conn = get_db()
-        cur = conn.cursor()
-        try:
-            cur.execute("""SELECT * FROM Tasks WHERE UserID = "{}" """.format(id))
-            query_results = cur.fetchall()
-            res_list = []
-            task = {}
-            for i in range(len(query_results)):
-                task = {
-                    'task_id' : query_results[i][0],
-                    'title' : query_results[i][1],
-                    'total_time' : query_results[i][2],
-                    'remaining_time' : query_results[i][3],
-                    'due_date' : query_results[i][4],
-                    'importance' : query_results[i][5],
-                    'difficulty' : query_results[i][6],
-                    'location' : query_results[i][7]
-                }
-                res_list.append(copy.deepcopy(task))
-                task.clear()
-                json_return = {
-                    'tasks' : res_list
-                }
-            return make_response(jsonify(json_return), 200)
-        except Exception as e:
-            return ('Error: {}'.format(e), 500)
+        res = get_task_request(id)
+        if res[0]:
+            return make_response(jsonify(res[1]), 200)
+        else:
+            return ('Error: {}'.format(res[1]), 500)
     else:
         abort(401)
 
@@ -215,7 +230,8 @@ def get_calendar():
                 calendar = {
                     'calendar_id' : query_results[i][0],
                     'ref_id' : query_results[i][1],
-                    'user_id' : query_results[i][2]
+                    'user_id' : query_results[i][2],
+                    'type_id' : query_results[i][3],
                 }
                 res_list.append(copy.deepcopy(calendar))
                 calendar.clear()
@@ -228,9 +244,32 @@ def get_calendar():
     else:
         abort(400)
 
+@app.route('/get-apple-calendars', methods=['GET'])
+def get_apple_calendars():
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("""SELECT * FROM Calendars WHERE UserID = "{}" AND TypeID = 0""".format(id))
+            query_results = cur.fetchall()
+            res_list = []
+            for i in range(len(query_results)):
+                res_list.append(query_results[i][1])
+            json_return = {
+                'calendars' : res_list
+            }
+            return make_response(jsonify(json_return), 200)
+        except Exception as e:
+            return ('Error: {}'.format(e), 500)
+    else:
+        abort(400)
+
+
 @app.route('/add-calendar', methods=['POST'])
 def add_calendar():
-    if not request.json or not 'ref_id' in request.json:
+    if not request.json or not 'ref_id' in request.json or not 'cal_type' in request.json:
         abort(400)
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
@@ -238,18 +277,97 @@ def add_calendar():
         conn = get_db()
         cur = conn.cursor()
         RefID = request.json['ref_id']
+        CalType = request.json['cal_type']
         try:
-            cur.execute("""INSERT INTO Calendars (RefID,UserID)
-                VALUES ("{}", "{}")""".format(RefID, id))
+            cur.execute("""INSERT INTO Calendars (RefID,UserID,TypeID)
+                VALUES ("{}", "{}", {})""".format(RefID, id, CalType))
             conn.commit()
             return {'status' : 200}
-        except Exception as e:
-            return ('Error: {}'.format(e), 500)
+        except mysql.connector.Error as err:
+            if err.errno == 1062:
+                return {'status': 200, }
+            return ('Error: {}'.format(err), 500)
     else:
         abort(400)
 
+
+@app.route('/generate-schedule', methods=['POST'])
+def generate_schedule():
+    if not request.json or not 'startDate' in request.json:
+        abort(400)
+
+    # All events combined
+    events = []
+
+    # Apple Calendar events
+    if 'events' in request.json:
+        events = request.json['events']
+
+    # Google Calendar events
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        pass
+    else:
+        abort(400)
+    
+    # Get the tasks
+    tasks = []
+    if id:
+        res = get_task_request(id)
+        if res[0]:
+            tasks = res[1]["tasks"]
+        else:
+            return ('Error: {}'.format(res[1]), 500)
+    else:
+        abort(400)
+
+    # Generate schedule
+    def event_string_to_date(windows):
+        date_windows = []
+        for window in windows:
+            date_windows.append(
+                (datetime.strptime(window['start'], "%Y-%m-%dT%H:%M:%S.%fZ"),
+                datetime.strptime(window['end'], "%Y-%m-%dT%H:%M:%S.%fZ"))
+            )
+        return date_windows
+    processed_events = event_string_to_date(events)
+    startDate = datetime.strptime(request.json['startDate'], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+    # TODO: Use the user working hours here instead of hard coded hours
+    cal = schedule(processed_events, startDate, ["14:00", "22:00"])
+
+    processed_tasks = []
+    for task in tasks:
+        new_task = Task(
+            task["task_id"],
+            task["title"],
+            task["total_time"],
+            task["importance"],
+            task["difficulty"],
+            task["due_date"],
+        )
+        processed_tasks.append(new_task)
+
+    ga = GA(cal, processed_tasks)
+    res = ga.optimize(max_iteraions=1000)
+
+    task_dicts = []
+    for task in res[0].tasks:
+        task_dicts = task_dicts + task.to_json()
+
+    json_return = {
+        'quality': res[1],
+        'tasks': task_dicts
+    }
+    response = make_response(jsonify(json_return), 200)
+    response.headers["Content-Type"] = "application/json"
+    return response
+
+
+
 @app.route('/update-time/<task_id>', methods=['POST'])
-def update_time(task_id) :
+def update_time(task_id):
     if not request.json or not 'remaining_time' in request.json:
         abort(400)
     jwt = request.headers['Token']
@@ -266,6 +384,13 @@ def update_time(task_id) :
             return ('Error: {}'.format(e), 500)
     else:
         abort(400)
+
+
+@app.route('/make-schedule', methods=['GET'])
+def make_schedule():
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

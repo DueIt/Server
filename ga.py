@@ -120,8 +120,9 @@ class Cluster():
 
         importance_ordered = importance_list
         worst_case = sorted(importance_list)
+        calculated_worst_case = self.calc_ordered_value(worst_case)
 
-        total_importance = 1 - (self.calc_ordered_value(importance_ordered) / self.calc_ordered_value(worst_case))
+        total_importance = 1 if calculated_worst_case == 0 else 1 - (self.calc_ordered_value(importance_ordered) / calculated_worst_case)
         res_fitness = total_fitness / len(self.tasks)
         res_fitness += self.importance_weight * total_importance
 
@@ -151,9 +152,8 @@ class Cluster():
 
 
     def mutate(self):
-        pick = random.randint(0, 1)
-        if pick == 0:
-            self.move()
+        # this is here in case we want to have other types of mutations down the road.
+        self.move()
 
 
 
