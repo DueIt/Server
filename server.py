@@ -1,3 +1,4 @@
+from __future__ import print_function
 from flask import Flask, jsonify, request, abort, make_response, g
 from decouple import config
 import mysql.connector
@@ -16,6 +17,19 @@ from schedule import schedule, datetime_from_utc_to_local
 from task import Task
 from ga import Cluster, GA
 
+
+import datetime
+import os.path
+
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+# If modifying these scopes, delete the file token.json.
+SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+
 ENDPOINT=config('ENDPOINT')
 PORT=config('PORT')
 USER=config('DB_USER')
@@ -29,6 +43,56 @@ def db_connect():
         return conn
     except Exception as e:
         print("Error: {}".format(e))
+
+def get_google_token(id):
+    conn = get_db()
+    cur = conn.cursor()
+    print(id)
+    creds = None
+    try:
+        cur.execute("""SELECT * FROM GoogleOauth WHERE UserID = "{}" """.format(id))
+        query_results = cur.fetchall()
+        if len(query_results) > 0:
+            for i in range(len(query_results)):
+                tokenJson = {
+                    'token' : query_results[i][1],
+                    'refresh_token' : query_results[i][2],
+                    'token_uri' : query_results[i][3],
+                    'client_id' : query_results[i][4],
+                    'client_secret' : query_results[i][5],
+                    'scopes' : query_results[i][6],
+                    'expiry' : query_results[i][7]
+                }
+                # what to do with this?
+                creds = Credentials.from_authorized_user_info(tokenJson, SCOPES)
+                tokenJson.clear()
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+                temp = creds.to_json()
+                credsJson1 = json.loads(temp)
+                cur.execute("""UPDATE GoogleOauth 
+                SET 
+                token = "{}", 
+                refresh_token = "{}", 
+                token_uri = "{}", 
+                client_id = "{}", 
+                client_secret = "{}", 
+                scopes = "{}", 
+                expiry = "{}" WHERE UserID = "{}" """.format(credsJson1['token'], credsJson1['refresh_token'],credsJson1['token_uri'], credsJson1['client_id'], credsJson1['client_secret'], credsJson1['scopes'], credsJson1['expiry'], id))
+                conn.commit()
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    'credentialsoauth.json', SCOPES)
+                creds = flow.run_local_server(port=0)
+                temp = creds.to_json()
+                credsJson = json.loads(temp)
+                cur.execute("""INSERT INTO GoogleOauth (UserID, token, refresh_token, token_uri, client_id, client_secret, scopes, expiry) VALUES ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}")""".format(id, credsJson['token'], credsJson['refresh_token'],credsJson['token_uri'], credsJson['client_id'], credsJson['client_secret'], credsJson['scopes'], credsJson['expiry']))
+                conn.commit()
+        return creds
+    except Exception as e:
+        print(e)
+        return ('Error: {}'.format(e), 401)
 
 def get_db():
     if not hasattr(g, 'db'):
@@ -178,6 +242,98 @@ def remove_tasks(task_id):
             return {'status' : 200}
         except Exception as e:
             return ('Error: {}'.format(e), 500)
+    else:
+        abort(400)
+
+@app.route('/getrecentevents', methods=['GET'])
+def getgooglecalevents():
+    jwt = request.headers['Token']
+    calID = request.headers['CalID']
+    id = get_id_from_jwt(jwt)
+    if id:
+        creds = get_google_token(id)
+        ev_list = []
+        try:
+            service = build('calendar', 'v3', credentials=creds)
+
+            # Call the Calendar API
+            now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+            aWeekFromNow = (datetime.datetime.utcnow() + datetime.timedelta(days=7)).isoformat() + 'Z'
+            print(now, aWeekFromNow)
+            events_result = service.events().list(calendarId=calID, timeMin=now,
+                                                timeMax=aWeekFromNow, singleEvents=True,
+                                                orderBy='startTime').execute()
+            events = events_result.get('items', [])
+
+            if not events:
+                print('No upcoming events found.')
+                json_return = {
+                    'events' : ev_list
+                }
+                return make_response(jsonify(json_return), 200)
+
+            # Prints the start and name of the next 10 events
+            
+            for event in events:
+                start = event['start'].get('dateTime', event['start'].get('date'))
+                ev = {
+                        'event_id' : event['etag'],
+                        'summary' : event['summary'],
+                        'start_time': start,
+                }
+                ev_list.append(copy.deepcopy(ev))
+                ev.clear()
+                json_return = {
+                    'events' : ev_list
+                }
+            print(ev_list)
+            return make_response(jsonify(json_return), 200)
+                
+
+        except HttpError as error:
+            print('An error occurred: %s' % error)
+
+    else:
+        abort(400)
+
+@app.route('/getcalendarlist', methods=['GET'])
+def get_cal_list():
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        creds = get_google_token(id)
+        try:
+            service = build('calendar', 'v3', credentials=creds)
+
+            # Call the Calendar API
+            print('Getting your calendars')
+
+            calendar_list = service.calendarList().list().execute()
+            cal_list = calendar_list.get('items', [])
+
+            if not cal_list:
+                print('No calendars found.')
+                return
+
+            res_list = []
+            for cal in cal_list:
+                # print(cal)
+                print(cal['summary'], cal['id'])
+                cal = {
+                        'cal_id' : cal['id'],
+                        'summary' : cal['summary'],
+                }
+                res_list.append(copy.deepcopy(cal))
+                cal.clear()
+                json_return = {
+                    'calendars' : res_list
+                }
+            return make_response(jsonify(json_return), 200)
+
+        except HttpError as error:
+            print('An error occurred: %s' % error)
+
+        # return {'status' : 200}
     else:
         abort(400)
 
