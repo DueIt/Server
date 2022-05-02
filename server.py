@@ -17,8 +17,6 @@ from schedule import schedule, datetime_from_utc_to_local
 from task import Task
 from ga import Cluster, GA
 
-
-import datetime
 import os.path
 
 from google.auth.transport.requests import Request
@@ -245,7 +243,7 @@ def remove_tasks(task_id):
     else:
         abort(400)
 
-@app.route('/getrecentevents', methods=['GET'])
+@app.route('/get-recent-events', methods=['GET'])
 def getgooglecalevents():
     jwt = request.headers['Token']
     calID = request.headers['CalID']
@@ -257,8 +255,8 @@ def getgooglecalevents():
             service = build('calendar', 'v3', credentials=creds)
 
             # Call the Calendar API
-            now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
-            aWeekFromNow = (datetime.datetime.utcnow() + datetime.timedelta(days=7)).isoformat() + 'Z'
+            now = datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+            aWeekFromNow = (datetime.utcnow() + datetime.timedelta(days=7)).isoformat() + 'Z'
             print(now, aWeekFromNow)
             events_result = service.events().list(calendarId=calID, timeMin=now,
                                                 timeMax=aWeekFromNow, singleEvents=True,
@@ -507,7 +505,8 @@ def generate_schedule():
 
     ga = GA(cal, processed_tasks)
     res = ga.optimize(max_iteraions=1000)
-
+    if not res:
+        return ('No Tasks to schedule!', 200) 
     task_dicts = []
     for task in res[0].tasks:
         task_dicts = task_dicts + task.to_json()
@@ -540,12 +539,6 @@ def update_time(task_id):
             return ('Error: {}'.format(e), 500)
     else:
         abort(400)
-
-
-@app.route('/make-schedule', methods=['GET'])
-def make_schedule():
-    jwt = request.headers['Token']
-    id = get_id_from_jwt(jwt)
 
 
 if __name__ == '__main__':

@@ -166,6 +166,8 @@ class GA():
 
 
     def optimize(self, change_threshold=0.03, max_iteraions=50):
+        if len(self.tasks) == 0:
+            return None
         clusters = []
         for _ in range(self.cluster_count):
             shuffled = random.sample(self.tasks, len(self.tasks))
