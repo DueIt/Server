@@ -9,9 +9,10 @@ import hashlib
 import binascii
 import jwt
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 import itertools
+import pytz
 
 from schedule import schedule, datetime_from_utc_to_local
 from task import Task
@@ -45,7 +46,6 @@ def db_connect():
 def get_google_token(id):
     conn = get_db()
     cur = conn.cursor()
-    print(id)
     creds = None
     try:
         cur.execute("""SELECT * FROM GoogleOauth WHERE UserID = "{}" """.format(id))
@@ -445,6 +445,77 @@ def add_calendar():
         abort(400)
 
 
+@app.route('/get-events', methods=['GET'])
+def get_events():
+    jwt = request.headers['Token']
+    id = get_id_from_jwt(jwt)
+    if id:
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("""SELECT * FROM Calendars WHERE UserID = "{}" AND TypeID = 0""".format(id))
+            query_results = cur.fetchall()
+            res_list = []
+            for i in range(len(query_results)):
+                res_list.append(query_results[i][1])
+            json_return = {
+                'AppleCalendarIDs' : res_list
+            }
+            
+            cur.execute("""SELECT * FROM Calendars WHERE UserID = "{}" AND TypeID = 1""".format(id))
+            query_results = cur.fetchall()
+            google_events = []
+            res_list = []
+            for i in range(len(query_results)):
+                calID = query_results[i][1]
+                events = get_google_events(id, calID)
+                if len(events) > 0:
+                    google_events = google_events + events
+            json_return["GoogleEvents"] = google_events
+            return make_response(jsonify(json_return), 200)
+        except Exception as e:
+            return ('Error: {}'.format(e), 500)
+    else:
+        abort(400)
+
+
+def get_google_events(id, calID):
+
+    creds = get_google_token(id)
+    ev_list = []
+
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+
+        # Call the Calendar API
+        now = datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+        aWeekFromNow = (datetime.utcnow() + timedelta(days=7)).isoformat() + 'Z'
+        # print(now, aWeekFromNow)
+        events_result = service.events().list(calendarId=calID, timeMin=now,
+                                            timeMax=aWeekFromNow, singleEvents=True,
+                                            orderBy='startTime').execute()
+        events = events_result.get('items', [])
+        if events:
+        
+            for event in events:
+                start = event['start'].get('dateTime', event['start'].get('date'))
+                start =  datetime.strptime(start, '%Y-%m-%dT%H:%M:%S%z').astimezone(pytz.utc)
+                end = event['end'].get('dateTime', event['end'].get('date'))
+                end =  datetime.strptime(end, '%Y-%m-%dT%H:%M:%S%z').astimezone(pytz.utc)
+                ev = {
+                        'title' : event['summary'],
+                        'start': start.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                        'end': end.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                }
+                ev_list.append(copy.deepcopy(ev))
+                ev.clear()
+        return ev_list
+
+    except HttpError as error:
+        print("WTF:", error)
+        return []
+
+
 @app.route('/generate-schedule', methods=['POST'])
 def generate_schedule():
     if not request.json or not 'startDate' in request.json:
@@ -461,7 +532,22 @@ def generate_schedule():
     jwt = request.headers['Token']
     id = get_id_from_jwt(jwt)
     if id:
-        pass
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("""SELECT * FROM Calendars WHERE UserID = "{}" AND TypeID = 1""".format(id))
+            query_results = cur.fetchall()
+            google_events = []
+            res_list = []
+            for i in range(len(query_results)):
+                calID = query_results[i][1]
+                events = get_google_events(id, calID)
+                if len(events) > 0:
+                    google_events = google_events + events
+            print(google_events)
+            events = events + google_events
+        except Exception as e:
+            return ('Error: {}'.format(e), 500)
     else:
         abort(400)
     
