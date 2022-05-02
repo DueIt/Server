@@ -555,7 +555,10 @@ def generate_schedule():
     if id:
         res = get_task_request(id)
         if res[0]:
-            tasks = res[1]["tasks"]
+            all_tasks = res[1]["tasks"]
+            for task in all_tasks:
+                if task['remaining_time'] > 0:
+                    tasks.append(copy.deepcopy(task))
         else:
             return ('Error: {}'.format(res[1]), 500)
     else:
