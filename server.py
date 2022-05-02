@@ -544,7 +544,6 @@ def generate_schedule():
                 events = get_google_events(id, calID)
                 if len(events) > 0:
                     google_events = google_events + events
-            print(google_events)
             events = events + google_events
         except Exception as e:
             return ('Error: {}'.format(e), 500)
