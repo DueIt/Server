@@ -523,7 +523,6 @@ def generate_schedule():
 
     # All events combined
     events = []
-
     # Apple Calendar events
     if 'events' in request.json:
         events = request.json['events']
@@ -541,9 +540,9 @@ def generate_schedule():
             res_list = []
             for i in range(len(query_results)):
                 calID = query_results[i][1]
-                events = get_google_events(id, calID)
+                temp_events = get_google_events(id, calID)
                 if len(events) > 0:
-                    google_events = google_events + events
+                    google_events = google_events + temp_events
             events = events + google_events
         except Exception as e:
             return ('Error: {}'.format(e), 500)
@@ -575,7 +574,6 @@ def generate_schedule():
         return date_windows
     processed_events = event_string_to_date(events)
     startDate = datetime.strptime(request.json['startDate'], "%Y-%m-%dT%H:%M:%S.%fZ")
-
     # TODO: Use the user working hours here instead of hard coded hours
     cal = schedule(processed_events, startDate, ["14:00", "22:00"])
 
@@ -603,6 +601,7 @@ def generate_schedule():
         'quality': res[1],
         'tasks': task_dicts
     }
+    print("TASKS:", task_dicts)
     response = make_response(jsonify(json_return), 200)
     response.headers["Content-Type"] = "application/json"
     return response

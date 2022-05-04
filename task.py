@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 
 class Task():
 
@@ -16,17 +17,28 @@ class Task():
 
 
     def add_subtask(self, subtask):
-        self.subtasks.append(subtask)
-        if len(self.subtasks) == 1:
-            self.proximity = 1
-            return
+        # self.subtasks.append(subtask)
+        # if len(self.subtasks) == 1:
+        #     self.proximity = 1
+        #     return
 
         adjacent = 0
-        for i in range(1, len(self.subtasks)):
-            if self.subtasks[i - 1]["end"] == self.subtasks[i]["start"]:
-                adjacent += 1
+        i = 0
+        while i < len(self.subtasks) - 1:
+            if self.subtasks[i]["end"] == self.subtasks[i + 1]["start"]:
+                self.subtasks[i]["end"] == self.subtasks[i + 1]["end"]
+                del self.subtasks[i + 1]
+            else:
+                i += 1
         
-        self.proximity = adjacent / (len(self.subtasks) - 1.0)
+        # self.proximity = adjacent / (len(self.subtasks) - 1.0)
+        self.subtasks.append(subtask)
+        good = 0
+        for task in self.subtasks:
+            time_length = task["end"] - task["start"]
+            if time_length > timedelta(minutes = 30) and time_length < timedelta(minutes = 70):
+                good += 1
+        self.proximity = good / (len(self.subtasks) * 3)
 
     def to_json(self):
         res = []

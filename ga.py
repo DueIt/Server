@@ -12,10 +12,10 @@ class Cluster():
 
         #positives
         self.proximity_weight = 0.1
-        self.importance_weight = 0.3
+        self.importance_weight = 0.2
         # self.difficulty_weight = 0.2
-        self.distribution_weight = 0.2
-        self.due_weight = 0.4
+        self.distribution_weight = 0.4
+        self.due_weight = 0.3
 
 
     def calc_task_fitness(self, task, start_date):
